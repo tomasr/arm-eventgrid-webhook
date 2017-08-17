@@ -1,0 +1,93 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "eventGridName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "webhookName": {
+            "type": "string",
+            "minLength": 1
+        },
+        "webhookUrl": {
+            "type": "string",
+            "minLength": 1
+        },
+        "webhookEventTypes": {
+            "type": "array",
+            "defaultValue": [ "All" ]
+        },
+        "webhookPrefixFilter": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "webhookSuffixFilter": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "webhookCaseSensitive": {
+            "type": "bool",
+            "defaultValue": false
+        },
+        "webhookLabels": {
+            "type": "array",
+            "defaultValue": [ "" ]
+        }
+    },
+    "variables": {
+        "apiVersion": "2017-06-15-preview"
+    },
+    "resources": [
+        {
+            "apiVersion": "[variables('apiVersion')]",
+            "name": "[parameters('eventGridName')]",
+            "type": "Microsoft.EventGrid/topics",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "displayName": "EventGrid"
+            },
+            "properties": {
+                "name": "[parameters('eventGridName')]"
+            },
+            "resources": [
+                {
+                    "apiVersion": "[variables('apiVersion')]",
+                    "name": "[concat(parameters('eventGridName'), '/Microsoft.EventGrid/', parameters('webhookName'))]",
+                    "type": "Microsoft.EventGrid/topics/providers/eventSubscriptions",
+                    "tags": {
+                        "displayName": "Webhook Subscription"
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.EventGrid/topics/', parameters('eventGridName'))]"
+                    ],
+                    "properties": {
+                        "destination": {
+                            "endpointType": "WebHook",
+                            "properties": {
+                                "endpointUrl": "[parameters('webhookUrl')]"
+                            }
+                        },
+                        "filter": {
+                            "includedEventTypes": "[parameters('webhookEventTypes')]",
+                            "subjectBeginsWith": "[parameters('webhookPrefixFilter')]",
+                            "subjectEndsWith": "[parameters('webhookSuffixFilter')]",
+                            "subjectIsCaseSensitive": "[parameters('webhookCaseSensitive')]"
+                        },
+                        "labels": "[parameters('webhookLabels')]"
+                    }
+                }
+            ]
+        }
+    ],
+    "outputs": {
+        "eventGridUrl": {
+            "type": "string",
+            "value": "[reference(parameters('eventGridName')).endpoint]"
+        },
+        "eventGridKey": {
+            "type": "string",
+            "value": "[listKeys(resourceId('Microsoft.EventGrid/topics', parameters('eventGridName')), variables('apiVersion')).key1]"
+        }
+    }
+}
